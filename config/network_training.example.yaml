@@ -1,0 +1,70 @@
+# Exact dual-branch CNN configuration reproduced from the supplied code/figure.
+project_root: ".."
+random_seed: 2023
+
+logging:
+  level: "INFO"
+
+inputs:
+  # Each NPY must be [N, 6, H, W] in R, G, B, NIR, VV, VH order.
+  # Each JSON must be a list with one property object per NPY row.
+  train_data_npy: "data/processed/Samples_Train_data.npy"
+  train_properties_json: "data/processed/Samples_Train_properties.json"
+  validation_data_npy: "data/processed/Samples_Val_data.npy"
+  validation_properties_json: "data/processed/Samples_Val_properties.json"
+
+  # Optional independent test set. Leave both empty to omit it.
+  test_data_npy: ""
+  test_properties_json: ""
+
+label:
+  key: "Height"
+  # If these keys do not exist, row number is used as sample_id and year is blank.
+  sample_id_key: "sample_id"
+  year_key: "year"
+  scale: 1.0
+
+normalization:
+  # Values taken directly from the supplied LMDataSet implementation.
+  rgb_divisor: 1600.0
+  nir_divisor: 3400.0
+  radar_min: -50.0
+  radar_max: 1.0
+
+model:
+  # Valid convolutions only: padding=0, no pooling and no BatchNorm.
+  ms_branch:
+    in_channels: 4
+    channels: [4, 4, 4, 8, 8, 16, 16, 16]
+    kernels: [3, 5, 7, 9, 7, 5, 3, 3]
+    bias: false
+
+  rd_branch:
+    in_channels: 2
+    channels: [8, 8, 8, 8, 8, 16, 16]
+    kernels: [3, 5, 7, 9, 7, 7, 3]
+    bias: false
+
+  # Regression head is fixed at 32 -> 64 -> 32 -> 1.
+  dropout: 0.3
+
+training:
+  device: "auto"
+  epochs: 200
+  batch_size: 64
+  workers: 0
+  learning_rate: 0.0001
+  weight_decay: 0.00001
+  deterministic: true
+  # Used only if the validation files above are both omitted.
+  fallback_train_fraction: 0.8
+
+gee:
+  # Names used in the generated GEE JavaScript snippets.
+  multispectral_image: "planet_im"
+  multispectral_bands: ["R", "G", "B", "NIR"]
+  radar_image: "radar_im"
+  radar_bands: ["VV", "VH"]
+
+outputs:
+  directory: "outputs/network_training"
